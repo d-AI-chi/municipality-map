@@ -5,12 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>R8年 標準化予定 市町村マップ</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 #map { width: 100%; height: 100vh; }
+
+#loading {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.92);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #333;
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 4px solid #ddd;
+  border-top-color: #2196F3;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .sidebar {
   position: absolute;
@@ -23,7 +45,7 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
   padding: 12px;
   max-height: calc(100vh - 20px);
   overflow-y: auto;
-  width: 280px;
+  width: 300px;
   font-size: 13px;
 }
 
@@ -182,28 +204,6 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
   line-height: 1.5;
 }
 
-.toggle-sidebar {
-  position: absolute;
-  top: 10px;
-  right: 300px;
-  z-index: 1001;
-  background: white;
-  border: none;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.toggle-sidebar:hover {
-  background: #f0f0f0;
-}
-
 .info-box {
   position: absolute;
   bottom: 20px;
@@ -276,6 +276,10 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 </style>
 </head>
 <body>
+<div id="loading">
+  <div class="spinner"></div>
+  市町村境界データを読み込み中...
+</div>
 <div id="map"></div>
 
 <div class="sidebar" id="sidebar">
@@ -292,7 +296,11 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
         <div class="def-body">
           半径50km以内に、本リストに含まれる<br>
           <strong>他の市町村が3つ以上</strong>隣接している場合を<br>
-          「密集」と判定しています。
+          「密集」と判定しています。<br>
+          <br>
+          地図上では該当市町村の領域全体を<br>
+          赤色（密集）または青色（非密集）で<br>
+          塗りつぶして表示しています。
         </div>
       </div>
     </div>
@@ -301,8 +309,8 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
       <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong>：隣接2市町村以下</div>
     </div>
     <div class="map-note">
-      ※ 地図は国土地理院タイルを使用。<br>
-      ズームすると市町村の境界線が表示されます。
+      ※ 市町村境界データ: 国土数値情報（国土交通省）<br>
+      ※ 背景地図: 国土地理院タイル
     </div>
   </div>
 
@@ -316,15 +324,13 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 </div>
 
 <div class="info-box">
-  <strong>操作方法:</strong> マーカーをクリックで詳細表示 / スクロールでズーム / 右のリストから市町村を選択
+  <strong>操作方法:</strong> 色付きの市町村をクリックで詳細表示 / スクロールでズーム / 右のリストから市町村を選択
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 // Data: parsed from Excel
 const municipalities = [
-  // Hokkaido
   {pref:"北海道",name:"安平町",date:46339,lat:42.7631,lng:141.8233},
   {pref:"北海道",name:"えりも町",date:46339,lat:42.0142,lng:143.1461},
   {pref:"北海道",name:"美瑛町",date:46339,lat:43.5873,lng:142.4685},
@@ -339,29 +345,19 @@ const municipalities = [
   {pref:"北海道",name:"広尾町",date:46360,lat:42.2847,lng:143.3114},
   {pref:"北海道",name:"標津町",date:46367,lat:43.6611,lng:145.1317},
   {pref:"北海道",name:"羅臼町",date:46367,lat:44.0233,lng:145.1856},
-  // Aomori
   {pref:"青森県",name:"つがる市",date:46373,lat:40.8072,lng:140.3822},
   {pref:"青森県",name:"鰺ヶ沢町",date:46374,lat:40.7803,lng:140.2092},
   {pref:"青森県",name:"深浦町",date:46374,lat:40.6464,lng:139.9275},
   {pref:"青森県",name:"鶴田町",date:46374,lat:40.7589,lng:140.4306},
-  // Iwate
   {pref:"岩手県",name:"雫石町",date:46367,lat:39.6956,lng:140.9625},
-  // Miyagi
   {pref:"宮城県",name:"七ヶ浜町",date:46338,lat:38.3017,lng:141.0536},
   {pref:"宮城県",name:"蔵王町",date:46381,lat:38.1003,lng:140.6553},
-  // Akita
   {pref:"秋田県",name:"上小阿仁村",date:46381,lat:39.9428,lng:140.3378},
-  // Fukushima
   {pref:"福島県",name:"浅川町",date:46338,lat:37.0733,lng:140.4119},
-  // Niigata
   {pref:"新潟県",name:"粟島浦村",date:46360,lat:38.4519,lng:139.2444},
-  // Ishikawa
   {pref:"石川県",name:"加賀市",date:46366,lat:36.3028,lng:136.3144},
-  // Nagano
   {pref:"長野県",name:"坂城町",date:46367,lat:36.4636,lng:138.1808},
-  // Aichi
   {pref:"愛知県",name:"幸田町",date:46339,lat:34.8608,lng:137.1633},
-  // Mie
   {pref:"三重県",name:"多気町",date:46374,lat:34.4828,lng:136.5783},
   {pref:"三重県",name:"明和町",date:46374,lat:34.5444,lng:136.6278},
   {pref:"三重県",name:"大台町",date:46374,lat:34.3747,lng:136.4042},
@@ -370,47 +366,36 @@ const municipalities = [
   {pref:"三重県",name:"大紀町",date:46374,lat:34.3131,lng:136.4000},
   {pref:"三重県",name:"松阪市",date:46380,lat:34.5781,lng:136.5308},
   {pref:"三重県",name:"鳥羽市",date:46380,lat:34.4811,lng:136.8431},
-  // Tottori
   {pref:"鳥取県",name:"江府町",date:46346,lat:35.2722,lng:133.4878},
   {pref:"鳥取県",name:"大山町",date:46366,lat:35.3889,lng:133.5072},
   {pref:"鳥取県",name:"境港市",date:46380,lat:35.5392,lng:133.2317},
   {pref:"鳥取県",name:"琴浦町",date:46381,lat:35.4956,lng:133.6867},
   {pref:"鳥取県",name:"日南町",date:46381,lat:35.1414,lng:133.3000},
-  // Okayama
   {pref:"岡山県",name:"和気町",date:46374,lat:34.7994,lng:134.1544},
   {pref:"岡山県",name:"西粟倉村",date:46374,lat:35.1775,lng:134.3350},
   {pref:"岡山県",name:"吉備中央町",date:46374,lat:34.8558,lng:133.6856},
   {pref:"岡山県",name:"浅口市",date:46380,lat:34.5250,lng:133.5833},
-  // Hiroshima
   {pref:"広島県",name:"三次市",date:46359,lat:34.8019,lng:132.8508},
   {pref:"広島県",name:"坂町",date:46374,lat:34.3389,lng:132.5119},
   {pref:"広島県",name:"三原市",date:46379,lat:34.3978,lng:133.0781},
-  // Yamaguchi
   {pref:"山口県",name:"萩市",date:46352,lat:34.4081,lng:131.3992},
-  // Tokushima
   {pref:"徳島県",name:"北島町",date:46374,lat:34.1317,lng:134.5539},
-  // Kagawa
   {pref:"香川県",name:"土庄町",date:46374,lat:34.4856,lng:134.1839},
   {pref:"香川県",name:"小豆島町",date:46374,lat:34.4644,lng:134.2508},
-  // Ehime
   {pref:"愛媛県",name:"大洲市",date:46345,lat:33.5058,lng:132.5458},
   {pref:"愛媛県",name:"東温市",date:46345,lat:33.7878,lng:132.8678},
   {pref:"愛媛県",name:"久万高原町",date:46346,lat:33.6458,lng:132.9017},
   {pref:"愛媛県",name:"内子町",date:46346,lat:33.5319,lng:132.6544},
   {pref:"愛媛県",name:"八幡浜市",date:46352,lat:33.4608,lng:132.4236},
-  // Kochi
   {pref:"高知県",name:"佐川町",date:46353,lat:33.5006,lng:133.2808},
-  // Fukuoka
   {pref:"福岡県",name:"大牟田市",date:46345,lat:33.0303,lng:130.4461},
   {pref:"福岡県",name:"みやま市",date:46345,lat:33.1556,lng:130.4739},
   {pref:"福岡県",name:"飯塚市",date:46352,lat:33.6458,lng:130.6914},
-  // Nagasaki
   {pref:"長崎県",name:"東彼杵町",date:46353,lat:33.0672,lng:129.9231},
   {pref:"長崎県",name:"川棚町",date:46353,lat:33.0744,lng:129.8656},
   {pref:"長崎県",name:"佐々町",date:46353,lat:33.2197,lng:129.6478},
   {pref:"長崎県",name:"波佐見町",date:46360,lat:33.1486,lng:129.8944},
   {pref:"長崎県",name:"新上五島町",date:46360,lat:32.9778,lng:129.0722},
-  // Kumamoto
   {pref:"熊本県",name:"相良村",date:46283,lat:32.2719,lng:130.8092},
   {pref:"熊本県",name:"南阿蘇村",date:46339,lat:32.8522,lng:131.0383},
   {pref:"熊本県",name:"阿蘇市",date:46345,lat:32.9489,lng:131.1239},
@@ -421,12 +406,10 @@ const municipalities = [
   {pref:"熊本県",name:"山江村",date:46360,lat:32.2206,lng:130.8186},
   {pref:"熊本県",name:"球磨村",date:46360,lat:32.2728,lng:130.7103},
   {pref:"熊本県",name:"美里町",date:46374,lat:32.6158,lng:130.8194},
-  // Kagoshima
   {pref:"鹿児島県",name:"指宿市",date:46282,lat:31.2519,lng:130.6319},
   {pref:"鹿児島県",name:"肝付町",date:46360,lat:31.1858,lng:130.9875},
   {pref:"鹿児島県",name:"長島町",date:46374,lat:32.2003,lng:130.1683},
   {pref:"鹿児島県",name:"天城町",date:46374,lat:27.3906,lng:128.8819},
-  // Okinawa
   {pref:"沖縄県",name:"沖縄市",date:46352,lat:26.3342,lng:127.8056}
 ];
 
@@ -487,33 +470,37 @@ municipalities.forEach((m, i) => {
   m.dateStr = excelDateToString(m.date);
 });
 
+// Build lookup: key = municipality name to match GeoJSON
+const muniLookup = {};
+municipalities.forEach(m => {
+  muniLookup[m.name] = m;
+  // Also store with pref prefix for disambiguation
+  muniLookup[m.pref + '_' + m.name] = m;
+});
+
 // Map
 const map = L.map('map', {
   zoomControl: true
 }).setView([36.5, 137.0], 6);
 
-// 国土地理院 淡色地図（市町村境界が表示される）
+// 国土地理院 淡色地図
 const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
   attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
   maxZoom: 18
 });
 
-// OpenStreetMap（切替用）
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors',
   maxZoom: 18
 });
 
-// 国土地理院 標準地図（よりはっきり境界が見える）
 const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
   attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
   maxZoom: 18
 });
 
-// デフォルトは淡色地図
 gsiPale.addTo(map);
 
-// レイヤー切替コントロール
 const baseMaps = {
   '国土地理院 淡色地図（推奨）': gsiPale,
   '国土地理院 標準地図': gsiStd,
@@ -521,64 +508,162 @@ const baseMaps = {
 };
 L.control.layers(baseMaps, null, { position: 'topleft' }).addTo(map);
 
-// Create markers
-const markers = {};
-const markerGroup = L.featureGroup();
+// Store polygon layers for click-from-list
+const polygonLayers = {};
 
-municipalities.forEach(m => {
-  const markerColor = m.densityColor;
-  const prefColor = prefColors[m.pref];
+// Fetch GeoJSON and render polygons
+const GEOJSON_URL = 'https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/geojson/s0001/N03-21_210101.json';
 
-  const icon = L.divIcon({
-    className: 'custom-marker',
-    html: `<div style="
-      width: 24px; height: 24px;
-      background: ${markerColor};
-      border: 3px solid ${prefColor};
-      border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-      transition: transform 0.2s;
-    " onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -14]
+fetch(GEOJSON_URL)
+  .then(res => res.json())
+  .then(geojson => {
+    // For each feature, check if it matches our municipality list
+    const geoLayer = L.geoJSON(geojson, {
+      style: function(feature) {
+        // Default: invisible
+        return { fillOpacity: 0, weight: 0, opacity: 0 };
+      },
+      onEachFeature: function(feature, layer) {
+        const props = feature.properties;
+        // N03_003 = city/county name, N03_004 = town/village name
+        const cityName = props.N03_003 || '';
+        const townName = props.N03_004 || '';
+        const prefName = props.N03_001 || '';
+
+        // Try to match: the municipality name in our list
+        // could be townName (for towns/villages) or cityName (for cities)
+        let matched = null;
+
+        // First try exact match on townName
+        if (townName && muniLookup[townName]) {
+          const candidate = muniLookup[townName];
+          if (candidate.pref === prefName) {
+            matched = candidate;
+          }
+        }
+        // Then try cityName (for 市 like 三笠市, 加賀市, etc.)
+        if (!matched && cityName && muniLookup[cityName]) {
+          const candidate = muniLookup[cityName];
+          if (candidate.pref === prefName) {
+            matched = candidate;
+          }
+        }
+
+        if (matched) {
+          // Style this polygon
+          layer.setStyle({
+            fillColor: matched.densityColor,
+            fillOpacity: 0.55,
+            color: '#333',
+            weight: 2,
+            opacity: 0.8
+          });
+
+          // Hover effect
+          layer.on('mouseover', function() {
+            this.setStyle({ fillOpacity: 0.8, weight: 3 });
+            this.bringToFront();
+          });
+          layer.on('mouseout', function() {
+            this.setStyle({ fillOpacity: 0.55, weight: 2 });
+          });
+
+          // Popup
+          const neighborSection = matched.neighbors > 0
+            ? '<div class="neighbor-info">' +
+              '<div class="neighbor-label">隣接市町村（50km以内）: <strong>' + matched.neighbors + '件</strong></div>' +
+              '<div class="neighbor-list">' + matched.neighborNames.join('、') + '</div>' +
+              '</div>'
+            : '<div class="neighbor-info"><div class="neighbor-label">隣接市町村（50km以内）: <strong>なし</strong></div></div>';
+
+          const popupContent =
+            '<div class="popup-content">' +
+            '<h3>' + matched.name + '</h3>' +
+            '<div class="pref-name">' + matched.pref + '</div>' +
+            '<div class="date-info">' +
+            '<div class="date-label">利用開始日</div>' +
+            '<div class="date-value">' + matched.dateStr + '</div>' +
+            '</div>' +
+            '<div class="density-badge" style="background:' + matched.densityColor + '">' +
+            matched.densityLabel + '（隣接 ' + matched.neighbors + ' 市町村）' +
+            '</div>' +
+            neighborSection +
+            '</div>';
+
+          layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
+
+          // Store for list click
+          const key = matched.pref + '_' + matched.name;
+          if (!polygonLayers[key]) {
+            polygonLayers[key] = [];
+          }
+          polygonLayers[key].push(layer);
+        }
+      }
+    }).addTo(map);
+
+    // Hide loading
+    document.getElementById('loading').style.display = 'none';
+
+    // Check for unmatched municipalities and log
+    const matchedNames = new Set();
+    Object.keys(polygonLayers).forEach(k => {
+      const name = k.split('_').slice(1).join('_');
+      matchedNames.add(name);
+    });
+    const unmatched = municipalities.filter(m => !matchedNames.has(m.name));
+    if (unmatched.length > 0) {
+      console.log('Unmatched municipalities (fallback markers will be added):', unmatched.map(m => m.pref + ' ' + m.name));
+      // Add fallback circle markers for unmatched
+      unmatched.forEach(m => {
+        const circle = L.circleMarker([m.lat, m.lng], {
+          radius: 12,
+          fillColor: m.densityColor,
+          fillOpacity: 0.7,
+          color: '#333',
+          weight: 2
+        });
+
+        const neighborSection = m.neighbors > 0
+          ? '<div class="neighbor-info">' +
+            '<div class="neighbor-label">隣接市町村（50km以内）: <strong>' + m.neighbors + '件</strong></div>' +
+            '<div class="neighbor-list">' + m.neighborNames.join('、') + '</div>' +
+            '</div>'
+          : '<div class="neighbor-info"><div class="neighbor-label">隣接市町村（50km以内）: <strong>なし</strong></div></div>';
+
+        const popupContent =
+          '<div class="popup-content">' +
+          '<h3>' + m.name + '</h3>' +
+          '<div class="pref-name">' + m.pref + '</div>' +
+          '<div class="date-info">' +
+          '<div class="date-label">利用開始日</div>' +
+          '<div class="date-value">' + m.dateStr + '</div>' +
+          '</div>' +
+          '<div class="density-badge" style="background:' + m.densityColor + '">' +
+          m.densityLabel + '（隣接 ' + m.neighbors + ' 市町村）' +
+          '</div>' +
+          neighborSection +
+          '</div>';
+
+        circle.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
+        circle.addTo(map);
+
+        const key = m.pref + '_' + m.name;
+        if (!polygonLayers[key]) {
+          polygonLayers[key] = [];
+        }
+        polygonLayers[key].push(circle);
+      });
+    }
+  })
+  .catch(err => {
+    console.error('GeoJSON load error:', err);
+    document.getElementById('loading').innerHTML = '<div style="color:red">境界データの読み込みに失敗しました。<br>ページをリロードしてください。</div>';
   });
-
-  const marker = L.marker([m.lat, m.lng], { icon: icon });
-
-  const neighborSection = m.neighbors > 0
-    ? `<div class="neighbor-info">
-        <div class="neighbor-label">隣接市町村（50km以内）: <strong>${m.neighbors}件</strong></div>
-        <div class="neighbor-list">${m.neighborNames.join('、')}</div>
-      </div>`
-    : `<div class="neighbor-info"><div class="neighbor-label">隣接市町村（50km以内）: <strong>なし</strong></div></div>`;
-
-  const popupContent = `
-    <div class="popup-content">
-      <h3>${m.name}</h3>
-      <div class="pref-name">${m.pref}</div>
-      <div class="date-info">
-        <div class="date-label">利用開始日</div>
-        <div class="date-value">${m.dateStr}</div>
-      </div>
-      <div class="density-badge" style="background:${m.densityColor}">
-        ${m.densityLabel}（隣接 ${m.neighbors} 市町村）
-      </div>
-      ${neighborSection}
-    </div>
-  `;
-
-  marker.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
-  marker.addTo(map);
-  markerGroup.addLayer(marker);
-
-  const key = m.pref + '_' + m.name;
-  markers[key] = { marker, data: m };
-});
 
 // Stats
 document.getElementById('stats').innerHTML =
-  `全 <strong>${municipalities.length}</strong> 市町村 / <strong>${prefList.length}</strong> 都道府県`;
+  '全 <strong>' + municipalities.length + '</strong> 市町村 / <strong>' + prefList.length + '</strong> 都道府県';
 
 // Prefecture legend
 const prefLegendEl = document.getElementById('prefLegend');
@@ -586,8 +671,8 @@ prefList.forEach(pref => {
   const count = municipalities.filter(m => m.pref === pref).length;
   const item = document.createElement('div');
   item.className = 'legend-item';
-  item.innerHTML = `<div class="legend-color" style="background:${prefColors[pref]}"></div>${pref} (${count})`;
-  item.addEventListener('click', () => {
+  item.innerHTML = '<div class="legend-color" style="background:' + prefColors[pref] + '"></div>' + pref + ' (' + count + ')';
+  item.addEventListener('click', function() {
     const prefMunis = municipalities.filter(m => m.pref === pref);
     const bounds = L.latLngBounds(prefMunis.map(m => [m.lat, m.lng]));
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
@@ -596,21 +681,28 @@ prefList.forEach(pref => {
 });
 
 // Municipality list
-function renderMuniList(filter = '') {
+function renderMuniList(filter) {
+  filter = filter || '';
   const listEl = document.getElementById('muniList');
   listEl.innerHTML = '';
   const filtered = municipalities.filter(m =>
-    m.name.includes(filter) || m.pref.includes(filter)
+    m.name.indexOf(filter) !== -1 || m.pref.indexOf(filter) !== -1
   );
   filtered.forEach(m => {
     const item = document.createElement('div');
     item.className = 'muni-item';
-    item.innerHTML = `<span class="pref">${m.pref}</span> <strong>${m.name}</strong>`;
-    item.addEventListener('click', () => {
-      map.setView([m.lat, m.lng], 12);
+    item.innerHTML = '<span class="pref">' + m.pref + '</span> <strong>' + m.name + '</strong>';
+    item.addEventListener('click', function() {
       const key = m.pref + '_' + m.name;
-      if (markers[key]) {
-        markers[key].marker.openPopup();
+      if (polygonLayers[key] && polygonLayers[key].length > 0) {
+        // Fit bounds to all polygon pieces
+        const group = L.featureGroup(polygonLayers[key]);
+        map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 12 });
+        // Open popup on first polygon
+        polygonLayers[key][0].openPopup();
+      } else {
+        // Fallback to lat/lng
+        map.setView([m.lat, m.lng], 12);
       }
     });
     listEl.appendChild(item);
@@ -619,51 +711,9 @@ function renderMuniList(filter = '') {
 
 renderMuniList();
 
-document.getElementById('searchBox').addEventListener('input', (e) => {
+document.getElementById('searchBox').addEventListener('input', function(e) {
   renderMuniList(e.target.value);
 });
-
-// Draw proximity lines for nearby municipalities
-function drawProximityLines() {
-  const lineGroup = L.layerGroup();
-  const drawn = new Set();
-
-  municipalities.forEach((m, i) => {
-    municipalities.forEach((n, j) => {
-      if (i >= j) return;
-      const dist = haversine(m.lat, m.lng, n.lat, n.lng);
-      if (dist < 30) {
-        const key = i + '-' + j;
-        if (!drawn.has(key)) {
-          drawn.add(key);
-          const opacity = Math.max(0.1, 1 - dist / 30);
-          L.polyline([[m.lat, m.lng], [n.lat, n.lng]], {
-            color: '#d32f2f',
-            weight: 1.5,
-            opacity: opacity,
-            dashArray: '4 4'
-          }).addTo(lineGroup);
-        }
-      }
-    });
-  });
-
-  lineGroup.addTo(map);
-
-  map.on('zoomend', () => {
-    if (map.getZoom() >= 8) {
-      lineGroup.addTo(map);
-    } else {
-      map.removeLayer(lineGroup);
-    }
-  });
-
-  if (map.getZoom() < 8) {
-    map.removeLayer(lineGroup);
-  }
-}
-
-drawProximityLines();
 </script>
 </body>
 </html>
