@@ -241,6 +241,38 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
   border-radius: 50%;
   border: 1px solid rgba(0,0,0,0.15);
 }
+
+.density-definition {
+  margin-bottom: 8px;
+}
+
+.def-box {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 4px;
+}
+
+.def-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #e65100;
+  margin-bottom: 4px;
+}
+
+.def-body {
+  font-size: 11px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.map-note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #999;
+  line-height: 1.5;
+}
 </style>
 </head>
 <body>
@@ -254,9 +286,23 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 
   <div class="legend-section">
     <h3>密集度による色分け</h3>
+    <div class="density-definition">
+      <div class="def-box">
+        <div class="def-title">「密集」の定義</div>
+        <div class="def-body">
+          半径50km以内に、本リストに含まれる<br>
+          <strong>他の市町村が3つ以上</strong>隣接している場合を<br>
+          「密集」と判定しています。
+        </div>
+      </div>
+    </div>
     <div class="density-legend">
-      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div>密集（隣接3市町村以上）</div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div>非密集（隣接2市町村以下）</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong>：隣接3市町村以上</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong>：隣接2市町村以下</div>
+    </div>
+    <div class="map-note">
+      ※ 地図は国土地理院タイルを使用。<br>
+      ズームすると市町村の境界線が表示されます。
     </div>
   </div>
 
@@ -446,10 +492,34 @@ const map = L.map('map', {
   zoomControl: true
 }).setView([36.5, 137.0], 6);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// 国土地理院 淡色地図（市町村境界が表示される）
+const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+  maxZoom: 18
+});
+
+// OpenStreetMap（切替用）
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors',
   maxZoom: 18
-}).addTo(map);
+});
+
+// 国土地理院 標準地図（よりはっきり境界が見える）
+const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+  maxZoom: 18
+});
+
+// デフォルトは淡色地図
+gsiPale.addTo(map);
+
+// レイヤー切替コントロール
+const baseMaps = {
+  '国土地理院 淡色地図（推奨）': gsiPale,
+  '国土地理院 標準地図': gsiStd,
+  'OpenStreetMap': osm
+};
+L.control.layers(baseMaps, null, { position: 'topleft' }).addTo(map);
 
 // Create markers
 const markers = {};
