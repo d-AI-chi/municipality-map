@@ -9,336 +9,167 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 #map { width: 100%; height: 100vh; }
-
 #loading {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(255,255,255,0.92);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  color: #333;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.92); z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 16px; color: #333;
 }
-
-.spinner {
-  width: 40px; height: 40px;
-  border: 4px solid #ddd;
-  border-top-color: #2196F3;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 12px;
-}
-
+.spinner { width: 40px; height: 40px; border: 4px solid #ddd; border-top-color: #2196F3; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .sidebar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-  padding: 12px;
-  max-height: calc(100vh - 20px);
-  overflow-y: auto;
-  width: 300px;
-  font-size: 13px;
+  position: absolute; top: 10px; right: 10px; z-index: 1000;
+  background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  padding: 12px; max-height: calc(100vh - 20px); overflow-y: auto; width: 320px; font-size: 13px;
 }
+.sidebar h2 { font-size: 15px; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+.sidebar .stats { margin-bottom: 10px; color: #555; font-size: 12px; }
+.legend-section { margin-bottom: 10px; }
+.legend-section h3 { font-size: 13px; margin-bottom: 4px; color: #333; }
+.search-box { width: 100%; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; font-size: 13px; }
+.search-box:focus { outline: none; border-color: #4A90D9; }
 
-.sidebar h2 {
-  font-size: 15px;
-  margin-bottom: 8px;
-  border-bottom: 2px solid #333;
-  padding-bottom: 6px;
-}
+.municipality-list { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
+.muni-item { display: flex; align-items: center; padding: 4px 6px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 12px; transition: background 0.15s; gap: 4px; }
+.muni-item:hover { background: #e8f0fe; }
+.muni-item .pref { color: #888; font-size: 10px; }
+.muni-item input[type="checkbox"] { margin-right: 4px; flex-shrink: 0; cursor: pointer; }
+.muni-item .pop-badge { font-size: 10px; color: #888; margin-left: auto; white-space: nowrap; }
 
-.sidebar .stats {
-  margin-bottom: 10px;
-  color: #555;
-  font-size: 12px;
-}
+.check-all-bar { display: flex; gap: 8px; margin-bottom: 4px; }
+.check-all-bar button { font-size: 11px; padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5; cursor: pointer; }
+.check-all-bar button:hover { background: #e0e0e0; }
 
-.legend-section {
-  margin-bottom: 10px;
-}
+.cluster-info-box { margin-top: 8px; padding: 8px; background: #f0f4ff; border-radius: 6px; border: 1px solid #c5cae9; font-size: 11px; }
+.cluster-info-box h4 { font-size: 12px; margin-bottom: 4px; color: #1a237e; }
+.cluster-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #e0e0e0; }
+.cluster-row:last-child { border-bottom: none; }
 
-.legend-section h3 {
-  font-size: 13px;
-  margin-bottom: 4px;
-  color: #333;
-}
+.custom-popup .leaflet-popup-content-wrapper { border-radius: 8px; box-shadow: 0 3px 14px rgba(0,0,0,0.25); }
+.popup-content { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; min-width: 200px; }
+.popup-content h3 { font-size: 16px; margin-bottom: 4px; color: #1a1a1a; }
+.popup-content .pref-name { font-size: 12px; color: #666; margin-bottom: 8px; }
+.popup-content .date-info { background: #f5f7fa; padding: 6px 10px; border-radius: 4px; font-size: 13px; margin-bottom: 4px; }
+.popup-content .date-label { font-size: 11px; color: #888; }
+.popup-content .date-value { font-size: 15px; font-weight: bold; color: #2c5aa0; }
+.popup-content .pop-info { background: #f5f5f5; padding: 6px 10px; border-radius: 4px; font-size: 13px; margin-bottom: 4px; }
+.popup-content .pop-label { font-size: 11px; color: #888; }
+.popup-content .pop-value { font-size: 15px; font-weight: bold; color: #333; }
+.density-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-top: 6px; color: white; font-weight: bold; }
+.neighbor-info { margin-top: 8px; padding: 6px 10px; background: #f9f9f9; border-radius: 4px; border-left: 3px solid #999; }
+.neighbor-label { font-size: 11px; color: #555; margin-bottom: 3px; }
+.neighbor-list { font-size: 12px; color: #333; line-height: 1.5; }
+.cluster-pop-info { margin-top: 6px; padding: 6px 10px; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50; font-size: 12px; }
 
-.legend-item {
-  display: flex;
-  align-items: center;
-  margin: 3px 0;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
+.info-box { position: absolute; bottom: 20px; left: 10px; z-index: 1000; background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.2); padding: 10px 14px; font-size: 12px; color: #555; }
+.info-box strong { color: #333; }
 
-.legend-item:hover {
-  background: #f0f0f0;
-}
+.density-legend { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.density-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.density-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); }
+.density-definition { margin-bottom: 8px; }
+.def-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 8px 10px; margin-top: 4px; }
+.def-title { font-size: 12px; font-weight: bold; color: #e65100; margin-bottom: 4px; }
+.def-body { font-size: 11px; color: #555; line-height: 1.6; }
+.map-note { margin-top: 6px; font-size: 10px; color: #999; line-height: 1.5; }
 
-.legend-color {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  margin-right: 6px;
-  border: 1px solid rgba(0,0,0,0.2);
-  flex-shrink: 0;
-}
-
-.search-box {
-  width: 100%;
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.search-box:focus {
-  outline: none;
-  border-color: #4A90D9;
-}
-
-.municipality-list {
-  max-height: 300px;
-  overflow-y: auto;
-  border: 1px solid #eee;
-  border-radius: 4px;
-}
-
-.muni-item {
-  padding: 5px 8px;
-  cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 12px;
-  transition: background 0.15s;
-}
-
-.muni-item:hover {
-  background: #e8f0fe;
-}
-
-.muni-item .pref {
-  color: #888;
-  font-size: 11px;
-}
-
-.custom-popup .leaflet-popup-content-wrapper {
-  border-radius: 8px;
-  box-shadow: 0 3px 14px rgba(0,0,0,0.25);
-}
-
-.popup-content {
-  font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
-  min-width: 180px;
-}
-
-.popup-content h3 {
-  font-size: 16px;
-  margin-bottom: 4px;
-  color: #1a1a1a;
-}
-
-.popup-content .pref-name {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.popup-content .date-info {
-  background: #f5f7fa;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.popup-content .date-label {
-  font-size: 11px;
-  color: #888;
-}
-
-.popup-content .date-value {
-  font-size: 15px;
-  font-weight: bold;
-  color: #2c5aa0;
-}
-
-.density-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  margin-top: 6px;
-  color: white;
-  font-weight: bold;
-}
-
-.neighbor-info {
-  margin-top: 8px;
-  padding: 6px 10px;
-  background: #f9f9f9;
-  border-radius: 4px;
-  border-left: 3px solid #999;
-}
-
-.neighbor-label {
-  font-size: 11px;
-  color: #555;
-  margin-bottom: 3px;
-}
-
-.neighbor-list {
-  font-size: 12px;
-  color: #333;
-  line-height: 1.5;
-}
-
-.info-box {
-  position: absolute;
-  bottom: 20px;
-  left: 10px;
-  z-index: 1000;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-  padding: 10px 14px;
-  font-size: 12px;
-  color: #555;
-}
-
-.info-box strong {
-  color: #333;
-}
-
-.density-legend {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-
-.density-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-}
-
-.density-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid rgba(0,0,0,0.15);
-}
-
-.density-definition {
-  margin-bottom: 8px;
-}
-
-.def-box {
-  background: #fff8e1;
-  border: 1px solid #ffe082;
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-top: 4px;
-}
-
-.def-title {
-  font-size: 12px;
-  font-weight: bold;
-  color: #e65100;
-  margin-bottom: 4px;
-}
-
-.def-body {
-  font-size: 11px;
-  color: #555;
-  line-height: 1.6;
-}
-
-.map-note {
-  margin-top: 6px;
-  font-size: 10px;
-  color: #999;
-  line-height: 1.5;
-}
+.pop-gradient { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 10px; color: #666; }
+.pop-gradient-bar { flex: 1; height: 12px; border-radius: 3px; border: 1px solid #ccc; }
+.pop-gradient-bar.dense { background: linear-gradient(to right, #ffcdd2, #b71c1c); }
+.pop-gradient-bar.sparse { background: linear-gradient(to right, #bbdefb, #0d47a1); }
 </style>
 </head>
 <body>
-<div id="loading">
-  <div class="spinner"></div>
-  市町村境界データを読み込み中...
-</div>
+<div id="loading"><div class="spinner"></div>市町村境界データを読み込み中...</div>
 <div id="map"></div>
 
 <div class="sidebar" id="sidebar">
   <h2>R8年 標準化予定市町村</h2>
   <div class="stats" id="stats"></div>
-
   <input type="text" class="search-box" id="searchBox" placeholder="市町村名で検索...">
 
   <div class="legend-section">
-    <h3>密集度による色分け</h3>
+    <h3>密集度 × 人口規模による色分け</h3>
     <div class="density-definition">
       <div class="def-box">
         <div class="def-title">「密集」の定義</div>
         <div class="def-body">
-          対象80市町村の行政区域ポリゴンで<br>
+          チェックされた市町村の行政区域で<br>
           <strong>実際に境界を共有する</strong>市町村同士を<br>
           「隣接」としてグラフ化し、<strong>連なり<br>
           （クラスター）が3市町村以上</strong>で<br>
-          あれば、そのクラスター全体を<br>
-          「密集」と判定しています。<br>
-          <br>
-          ※ 端の市町村（隣接が1つだけ）でも<br>
-          クラスター全体が3以上なら密集扱い。<br>
-          ※ 距離制限は使用していません。<br>
-          <br>
-          地図上では該当市町村の領域全体を<br>
-          赤色（密集）または青色（非密集）で<br>
-          塗りつぶして表示しています。
+          あれば「密集」と判定。<br>
+          人口が多いほど色が<strong>濃く</strong>なります。
         </div>
       </div>
     </div>
     <div class="density-legend">
-      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong>：クラスター3市町村以上</div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong>：クラスター2市町村以下</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong></div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong></div>
+    </div>
+    <div style="margin-top:4px">
+      <div class="pop-gradient">少<div class="pop-gradient-bar dense"></div>多 <span style="color:#d32f2f">密集</span></div>
+      <div class="pop-gradient">少<div class="pop-gradient-bar sparse"></div>多 <span style="color:#2196F3">非密集</span></div>
     </div>
     <div class="map-note">
-      ※ 市町村境界データ: 国土数値情報（国土交通省）<br>
-      ※ 背景地図: 国土地理院タイル
+      ※ 人口: 2020年国勢調査<br>
+      ※ 市町村境界: 国土数値情報（国土交通省）
     </div>
   </div>
 
-  <div class="legend-section">
-    <h3>都道府県別（クリックで移動）</h3>
-    <div id="prefLegend"></div>
-  </div>
+  <div id="clusterInfoArea"></div>
 
-  <h3 style="margin-top:8px; margin-bottom:4px; font-size:13px;">市町村一覧</h3>
+  <div class="legend-section">
+    <h3>市町村一覧（チェックで表示切替）</h3>
+    <div class="check-all-bar">
+      <button id="btnCheckAll">全選択</button>
+      <button id="btnUncheckAll">全解除</button>
+    </div>
+  </div>
   <div class="municipality-list" id="muniList"></div>
 </div>
 
 <div class="info-box">
-  <strong>操作方法:</strong> 色付きの市町村をクリックで詳細表示 / スクロールでズーム / 右のリストから市町村を選択
+  <strong>操作方法:</strong> 色付きの市町村をクリックで詳細表示 / チェックで表示ON/OFF
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script>
-// Data: parsed from Excel
-const municipalities = [
+// Population data (2020 Census)
+var popData = {"安平町":7340,"えりも町":4374,"美瑛町":9668,"新得町":5817,"更別村":3080,"浜中町":5507,"標茶町":7230,"別海町":14380,"中標津町":23010,"三笠市":8040,"寿都町":2838,"広尾町":6387,"標津町":5023,"羅臼町":4722,"つがる市":30934,"鰺ヶ沢町":9044,"深浦町":7346,"鶴田町":12074,"雫石町":15731,"七ヶ浜町":18132,"蔵王町":11418,"上小阿仁村":2063,"浅川町":6036,"粟島浦村":353,"加賀市":63220,"坂城町":14004,"幸田町":42449,"多気町":14021,"明和町":22445,"大台町":8668,"玉城町":15041,"度会町":7847,"大紀町":7815,"松阪市":159145,"鳥羽市":17525,"江府町":2672,"大山町":15370,"境港市":32740,"琴浦町":16365,"日南町":4196,"和気町":13623,"西粟倉村":1398,"吉備中央町":10886,"浅口市":32772,"三次市":50681,"坂町":12582,"三原市":90573,"萩市":44626,"北島町":22745,"土庄町":12846,"小豆島町":13870,"大洲市":40575,"東温市":33903,"久万高原町":7404,"内子町":15322,"八幡浜市":31987,"佐川町":12323,"大牟田市":111281,"みやま市":35861,"飯塚市":126364,"東彼杵町":7721,"川棚町":13377,"佐々町":13912,"波佐見町":14291,"新上五島町":17503,"相良村":4070,"南阿蘇村":9836,"阿蘇市":24930,"西原村":6426,"上天草市":24563,"大津町":35187,"湯前町":3627,"山江村":3238,"球磨村":2433,"美里町":9392,"指宿市":39011,"肝付町":14227,"長島町":9705,"天城町":5517,"沖縄市":142752};
+var popMin = Math.min.apply(null, Object.values(popData));
+var popMax = Math.max.apply(null, Object.values(popData));
+
+function popToRatio(pop) {
+  // log scale for better visual spread
+  var logMin = Math.log(popMin || 1);
+  var logMax = Math.log(popMax);
+  return (Math.log(pop || 1) - logMin) / (logMax - logMin);
+}
+
+function getDenseColor(ratio) {
+  // light red -> dark red
+  var r = Math.round(255 - ratio * 72);
+  var g = Math.round(205 - ratio * 177);
+  var b = Math.round(210 - ratio * 183);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+function getSparseColor(ratio) {
+  // light blue -> dark blue
+  var r = Math.round(187 - ratio * 174);
+  var g = Math.round(222 - ratio * 151);
+  var b = Math.round(251 - ratio * 90);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function formatPop(n) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// Data
+var municipalities = [
   {pref:"北海道",name:"安平町",date:46339,lat:42.7631,lng:141.8233},
   {pref:"北海道",name:"えりも町",date:46339,lat:42.0142,lng:143.1461},
   {pref:"北海道",name:"美瑛町",date:46339,lat:43.5873,lng:142.4685},
@@ -421,363 +252,305 @@ const municipalities = [
   {pref:"沖縄県",name:"沖縄市",date:46352,lat:26.3342,lng:127.8056}
 ];
 
-// Convert Excel serial to date string
 function excelDateToString(serial) {
-  const epoch = new Date(1899, 11, 30);
-  const d = new Date(epoch.getTime() + serial * 86400000);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return y + '年' + m + '月' + day + '日';
+  var epoch = new Date(1899, 11, 30);
+  var d = new Date(epoch.getTime() + serial * 86400000);
+  return d.getFullYear() + '年' + String(d.getMonth()+1).padStart(2,'0') + '月' + String(d.getDate()).padStart(2,'0') + '日';
 }
 
-// Prefecture colors
-const prefColors = {};
-const colorPalette = [
-  '#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd',
-  '#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf',
-  '#393b79','#637939','#8c6d31','#843c39','#7b4173',
-  '#5254a3','#6b6ecf','#9c9ede','#31a354','#756bb1',
-  '#636363','#e6550d','#3182bd','#e7969c','#c7e9c0'
-];
-
-const prefList = [...new Set(municipalities.map(m => m.pref))];
-prefList.forEach((p, i) => {
-  prefColors[p] = colorPalette[i % colorPalette.length];
-});
-
-// Initialize – density will be computed after TopoJSON load
-municipalities.forEach(m => {
+municipalities.forEach(function(m) {
+  m.pop = popData[m.name] || 0;
   m.dateStr = excelDateToString(m.date);
-  m.neighbors = 0;
-  m.neighborNames = [];
-  m.clusterSize = 1;
-  m.clusterMembers = [m.name];
-  m.density = 'sparse';
-  m.densityColor = '#2196F3';
-  m.densityLabel = '非密集';
+  m.enabled = true; // checkbox state
 });
 
-// Build lookup: key = municipality name to match GeoJSON
-const muniLookup = {};
-municipalities.forEach(m => {
+var muniLookup = {};
+municipalities.forEach(function(m) {
   muniLookup[m.name] = m;
-  // Also store with pref prefix for disambiguation
   muniLookup[m.pref + '_' + m.name] = m;
 });
 
 // Map
-const map = L.map('map', {
-  zoomControl: true
-}).setView([36.5, 137.0], 6);
+var map = L.map('map', { zoomControl: true }).setView([36.5, 137.0], 6);
 
-// 国土地理院 淡色地図
-const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-  maxZoom: 18
+var gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>', maxZoom: 18
 });
-
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors',
-  maxZoom: 18
+var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
 });
-
-const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-  maxZoom: 18
+var gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>', maxZoom: 18
 });
-
 gsiPale.addTo(map);
+L.control.layers({'国土地理院 淡色地図': gsiPale, '国土地理院 標準地図': gsiStd, 'OpenStreetMap': osm}, null, {position:'topleft'}).addTo(map);
 
-const baseMaps = {
-  '国土地理院 淡色地図（推奨）': gsiPale,
-  '国土地理院 標準地図': gsiStd,
-  'OpenStreetMap': osm
-};
-L.control.layers(baseMaps, null, { position: 'topleft' }).addTo(map);
+// Globals set after TopoJSON load
+var polygonLayers = {}; // key -> [layer, ...]
+var topoNeighbors = null;
+var featureToMuni = null;
+var geometries = null;
+var geoLayer = null;
 
-// Store polygon layers for click-from-list
-const polygonLayers = {};
+// ---- Core: recompute clusters for enabled municipalities and redraw ----
+function recompute() {
+  var enabled = municipalities.filter(function(m){ return m.enabled; });
+  var enabledKeys = new Set(enabled.map(function(m){ return m.pref+'_'+m.name; }));
 
-// Fetch TopoJSON (high-precision s0010, ~1.5MB) and convert to GeoJSON
-const TOPOJSON_URL = 'https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/topojson/s0010/N03-21_210101.json';
+  // Build adjacency only among enabled munis using real boundary data
+  var adj = {};
+  enabled.forEach(function(m){ adj[m.pref+'_'+m.name] = new Set(); });
 
-fetch(TOPOJSON_URL)
-  .then(res => res.json())
-  .then(topo => {
-    const objectKey = Object.keys(topo.objects)[0];
-    const geometries = topo.objects[objectKey].geometries;
-    const geojson = topojson.feature(topo, topo.objects[objectKey]);
-
-    // ---- Step A: Map each TopoJSON geometry index to our municipality ----
-    // featureIndex -> matched municipality, or null
-    const featureToMuni = new Array(geometries.length).fill(null);
-    // municipality name -> list of feature indices (some munis have multiple polygons)
-    const muniToFeatures = {};
-
-    geometries.forEach((geom, fi) => {
-      const props = geom.properties;
-      const cityName = props.N03_003 || '';
-      const townName = props.N03_004 || '';
-      const prefName = props.N03_001 || '';
-      let matched = null;
-      if (townName && muniLookup[townName]) {
-        const c = muniLookup[townName];
-        if (c.pref === prefName) matched = c;
-      }
-      if (!matched && cityName && muniLookup[cityName]) {
-        const c = muniLookup[cityName];
-        if (c.pref === prefName) matched = c;
-      }
-      if (matched) {
-        featureToMuni[fi] = matched;
-        const mk = matched.pref + '_' + matched.name;
-        if (!muniToFeatures[mk]) muniToFeatures[mk] = [];
-        muniToFeatures[mk].push(fi);
-      }
-    });
-
-    // ---- Step B: Use topojson.neighbors() for real boundary adjacency ----
-    const topoNeighbors = topojson.neighbors(geometries);
-
-    // Build adjacency between our 80 municipalities (by name key)
-    const muniAdj = {}; // key -> Set of neighbor keys
-    municipalities.forEach(m => {
-      muniAdj[m.pref + '_' + m.name] = new Set();
-    });
-
-    geometries.forEach((geom, fi) => {
-      const mA = featureToMuni[fi];
-      if (!mA) return;
-      const keyA = mA.pref + '_' + mA.name;
-      (topoNeighbors[fi] || []).forEach(ni => {
-        const mB = featureToMuni[ni];
-        if (!mB) return;
-        const keyB = mB.pref + '_' + mB.name;
-        if (keyA !== keyB) {
-          muniAdj[keyA].add(keyB);
-          muniAdj[keyB].add(keyA);
-        }
+  if (geometries && topoNeighbors && featureToMuni) {
+    geometries.forEach(function(geom, fi) {
+      var mA = featureToMuni[fi];
+      if (!mA || !mA.enabled) return;
+      var kA = mA.pref+'_'+mA.name;
+      (topoNeighbors[fi]||[]).forEach(function(ni) {
+        var mB = featureToMuni[ni];
+        if (!mB || !mB.enabled) return;
+        var kB = mB.pref+'_'+mB.name;
+        if (kA !== kB) { adj[kA].add(kB); adj[kB].add(kA); }
       });
     });
+  }
 
-    // Store neighbor info on each municipality
-    municipalities.forEach(m => {
-      const key = m.pref + '_' + m.name;
-      const adjSet = muniAdj[key] || new Set();
-      m.neighborNames = [...adjSet].map(k => {
-        const parts = k.split('_');
-        return parts.slice(1).join('_');
-      });
-      m.neighbors = m.neighborNames.length;
-    });
+  // Store neighbor names
+  enabled.forEach(function(m) {
+    var k = m.pref+'_'+m.name;
+    var s = adj[k] || new Set();
+    m.neighborNames = Array.from(s).map(function(x){ return x.split('_').slice(1).join('_'); });
+    m.neighbors = m.neighborNames.length;
+  });
 
-    // ---- Step C: BFS to find clusters ----
-    const muniKeys = municipalities.map(m => m.pref + '_' + m.name);
-    const keyToIdx = {};
-    muniKeys.forEach((k, i) => { keyToIdx[k] = i; });
-    const vis = new Array(municipalities.length).fill(false);
-    const clusters = [];
-
-    municipalities.forEach((m, i) => {
-      if (vis[i]) return;
-      const queue = [i];
-      const cluster = [];
-      vis[i] = true;
-      while (queue.length > 0) {
-        const cur = queue.shift();
-        cluster.push(cur);
-        const curKey = muniKeys[cur];
-        (muniAdj[curKey] || new Set()).forEach(nbKey => {
-          const ni = keyToIdx[nbKey];
-          if (ni !== undefined && !vis[ni]) {
-            vis[ni] = true;
-            queue.push(ni);
-          }
-        });
-      }
-      clusters.push(cluster);
-    });
-
-    clusters.forEach(cluster => {
-      const isDense = cluster.length >= 3;
-      cluster.forEach(idx => {
-        const m = municipalities[idx];
-        if (isDense) {
-          m.density = 'dense';
-          m.densityColor = '#d32f2f';
-          m.densityLabel = '密集';
-        } else {
-          m.density = 'sparse';
-          m.densityColor = '#2196F3';
-          m.densityLabel = '非密集';
-        }
-        m.clusterSize = cluster.length;
-        m.clusterMembers = cluster.map(ci => municipalities[ci].name);
-      });
-    });
-
-    // ---- Step D: Render polygons with computed colors ----
-    const geoLayer = L.geoJSON(geojson, {
-      style: function(feature) {
-        return { fillOpacity: 0, weight: 0, opacity: 0 };
-      },
-      onEachFeature: function(feature, layer) {
-        const props = feature.properties;
-        const cityName = props.N03_003 || '';
-        const townName = props.N03_004 || '';
-        const prefName = props.N03_001 || '';
-        let matched = null;
-        if (townName && muniLookup[townName]) {
-          const c = muniLookup[townName];
-          if (c.pref === prefName) matched = c;
-        }
-        if (!matched && cityName && muniLookup[cityName]) {
-          const c = muniLookup[cityName];
-          if (c.pref === prefName) matched = c;
-        }
-        if (!matched) return;
-
-        layer.setStyle({
-          fillColor: matched.densityColor,
-          fillOpacity: 0.55,
-          color: '#333',
-          weight: 2,
-          opacity: 0.8
-        });
-
-        layer.on('mouseover', function() {
-          this.setStyle({ fillOpacity: 0.8, weight: 3 });
-          this.bringToFront();
-        });
-        layer.on('mouseout', function() {
-          this.setStyle({ fillOpacity: 0.55, weight: 2 });
-        });
-
-        var clusterSection = matched.clusterSize > 1
-          ? '<div class="neighbor-info">' +
-            '<div class="neighbor-label">所属クラスター: <strong>' + matched.clusterSize + '市町村</strong></div>' +
-            '<div class="neighbor-list">' + matched.clusterMembers.filter(function(n){return n !== matched.name}).join('、') + '</div>' +
-            '</div>'
-          : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>なし（単独）</strong></div></div>';
-
-        var neighborSection = matched.neighbors > 0
-          ? '<div class="neighbor-info">' +
-            '<div class="neighbor-label">境界を共有する隣接市町村: <strong>' + matched.neighbors + '件</strong></div>' +
-            '<div class="neighbor-list">' + matched.neighborNames.join('、') + '</div>' +
-            '</div>'
-          : '';
-
-        var popupContent =
-          '<div class="popup-content">' +
-          '<h3>' + matched.name + '</h3>' +
-          '<div class="pref-name">' + matched.pref + '</div>' +
-          '<div class="date-info">' +
-          '<div class="date-label">利用開始日</div>' +
-          '<div class="date-value">' + matched.dateStr + '</div>' +
-          '</div>' +
-          '<div class="density-badge" style="background:' + matched.densityColor + '">' +
-          matched.densityLabel + '（クラスター ' + matched.clusterSize + ' 市町村）' +
-          '</div>' +
-          clusterSection +
-          neighborSection +
-          '</div>';
-
-        layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
-
-        var key = matched.pref + '_' + matched.name;
-        if (!polygonLayers[key]) polygonLayers[key] = [];
-        polygonLayers[key].push(layer);
-      }
-    }).addTo(map);
-
-    // Hide loading
-    document.getElementById('loading').style.display = 'none';
-
-    // Fallback for unmatched
-    var matchedNames = new Set();
-    Object.keys(polygonLayers).forEach(function(k) {
-      matchedNames.add(k.split('_').slice(1).join('_'));
-    });
-    var unmatched = municipalities.filter(function(m) { return !matchedNames.has(m.name); });
-    if (unmatched.length > 0) {
-      console.log('Unmatched (fallback):', unmatched.map(function(m){return m.pref+' '+m.name}));
-      unmatched.forEach(function(m) {
-        var circle = L.circleMarker([m.lat, m.lng], {
-          radius: 12, fillColor: m.densityColor, fillOpacity: 0.7, color: '#333', weight: 2
-        });
-        var popupContent =
-          '<div class="popup-content">' +
-          '<h3>' + m.name + '</h3>' +
-          '<div class="pref-name">' + m.pref + '</div>' +
-          '<div class="date-info"><div class="date-label">利用開始日</div><div class="date-value">' + m.dateStr + '</div></div>' +
-          '<div class="density-badge" style="background:' + m.densityColor + '">' + m.densityLabel + '（クラスター ' + m.clusterSize + ' 市町村）</div>' +
-          '</div>';
-        circle.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
-        circle.addTo(map);
-        var key = m.pref + '_' + m.name;
-        if (!polygonLayers[key]) polygonLayers[key] = [];
-        polygonLayers[key].push(circle);
+  // BFS clusters
+  var vis = {};
+  var clusters = [];
+  enabled.forEach(function(m) {
+    var k = m.pref+'_'+m.name;
+    if (vis[k]) return;
+    var queue = [k], cluster = [];
+    vis[k] = true;
+    while (queue.length) {
+      var cur = queue.shift();
+      cluster.push(cur);
+      (adj[cur]||new Set()).forEach(function(nb) {
+        if (!vis[nb]) { vis[nb]=true; queue.push(nb); }
       });
     }
-  })
-  .catch(err => {
-    console.error('GeoJSON load error:', err);
-    document.getElementById('loading').innerHTML = '<div style="color:red">境界データの読み込みに失敗しました。<br>ページをリロードしてください。</div>';
+    clusters.push(cluster);
   });
 
-// Stats
-document.getElementById('stats').innerHTML =
-  '全 <strong>' + municipalities.length + '</strong> 市町村 / <strong>' + prefList.length + '</strong> 都道府県';
-
-// Prefecture legend
-const prefLegendEl = document.getElementById('prefLegend');
-prefList.forEach(pref => {
-  const count = municipalities.filter(m => m.pref === pref).length;
-  const item = document.createElement('div');
-  item.className = 'legend-item';
-  item.innerHTML = '<div class="legend-color" style="background:' + prefColors[pref] + '"></div>' + pref + ' (' + count + ')';
-  item.addEventListener('click', function() {
-    const prefMunis = municipalities.filter(m => m.pref === pref);
-    const bounds = L.latLngBounds(prefMunis.map(m => [m.lat, m.lng]));
-    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+  // Assign density + cluster info
+  clusters.forEach(function(cluster) {
+    var isDense = cluster.length >= 3;
+    var totalPop = 0;
+    cluster.forEach(function(k) {
+      var m = muniLookup[k];
+      if (m) totalPop += m.pop;
+    });
+    cluster.forEach(function(k) {
+      var m = muniLookup[k];
+      if (!m) return;
+      m.density = isDense ? 'dense' : 'sparse';
+      m.densityLabel = isDense ? '密集' : '非密集';
+      m.clusterSize = cluster.length;
+      m.clusterMembers = cluster.map(function(x){ return x.split('_').slice(1).join('_'); });
+      m.clusterPop = totalPop;
+      var ratio = popToRatio(m.pop);
+      m.densityColor = isDense ? getDenseColor(ratio) : getSparseColor(ratio);
+    });
   });
-  prefLegendEl.appendChild(item);
-});
 
-// Municipality list
+  // Disabled munis reset
+  municipalities.forEach(function(m) {
+    if (!m.enabled) {
+      m.density = 'none';
+      m.densityColor = '#ccc';
+      m.densityLabel = '除外';
+      m.clusterSize = 0;
+      m.clusterMembers = [];
+      m.clusterPop = 0;
+      m.neighborNames = [];
+      m.neighbors = 0;
+    }
+  });
+
+  // Update polygon styles
+  municipalities.forEach(function(m) {
+    var k = m.pref+'_'+m.name;
+    var layers = polygonLayers[k];
+    if (!layers) return;
+    layers.forEach(function(layer) {
+      if (m.enabled) {
+        layer.setStyle({ fillColor: m.densityColor, fillOpacity: 0.6, color: '#333', weight: 2, opacity: 0.8 });
+        // Rebind popup
+        layer.unbindPopup();
+        layer.bindPopup(buildPopup(m), { className:'custom-popup', maxWidth:340 });
+      } else {
+        layer.setStyle({ fillOpacity: 0, weight: 0, opacity: 0 });
+        layer.unbindPopup();
+      }
+    });
+  });
+
+  // Update cluster info box
+  renderClusterInfo(clusters);
+}
+
+function buildPopup(m) {
+  var clusterSection = m.clusterSize > 1
+    ? '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>' + m.clusterSize + '市町村</strong></div>' +
+      '<div class="neighbor-list">' + m.clusterMembers.filter(function(n){return n!==m.name}).join('、') + '</div></div>'
+    : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>単独</strong></div></div>';
+  var neighborSection = m.neighbors > 0
+    ? '<div class="neighbor-info"><div class="neighbor-label">境界を共有する隣接: <strong>' + m.neighbors + '件</strong></div>' +
+      '<div class="neighbor-list">' + m.neighborNames.join('、') + '</div></div>'
+    : '';
+  var clusterPopSection = m.clusterPop > 0
+    ? '<div class="cluster-pop-info">クラスター合計人口: <strong>' + formatPop(m.clusterPop) + '人</strong></div>'
+    : '';
+  return '<div class="popup-content">' +
+    '<h3>' + m.name + '</h3><div class="pref-name">' + m.pref + '</div>' +
+    '<div class="pop-info"><div class="pop-label">人口（2020年国勢調査）</div><div class="pop-value">' + formatPop(m.pop) + ' 人</div></div>' +
+    '<div class="date-info"><div class="date-label">利用開始日</div><div class="date-value">' + m.dateStr + '</div></div>' +
+    '<div class="density-badge" style="background:' + m.densityColor + '">' + m.densityLabel + '（クラスター ' + m.clusterSize + ' 市町村）</div>' +
+    clusterSection + neighborSection + clusterPopSection + '</div>';
+}
+
+function renderClusterInfo(clusters) {
+  var area = document.getElementById('clusterInfoArea');
+  var dense = clusters.filter(function(c){ return c.length >= 3; });
+  if (dense.length === 0) { area.innerHTML = '<div class="cluster-info-box"><h4>密集クラスター</h4><div style="color:#888">なし</div></div>'; return; }
+  var html = '<div class="cluster-info-box"><h4>密集クラスター一覧</h4>';
+  dense.forEach(function(cluster, ci) {
+    var totalPop = 0;
+    var names = [];
+    cluster.forEach(function(k) {
+      var m = muniLookup[k];
+      if (m) { totalPop += m.pop; names.push(m.name); }
+    });
+    html += '<div class="cluster-row"><div><strong>C' + (ci+1) + '</strong> (' + cluster.length + '市町村): ' + names.join(', ') + '</div></div>';
+    html += '<div class="cluster-row" style="color:#4caf50;font-weight:bold">合計人口: ' + formatPop(totalPop) + '人</div>';
+  });
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+// ---- Render municipality list with checkboxes ----
 function renderMuniList(filter) {
   filter = filter || '';
-  const listEl = document.getElementById('muniList');
+  var listEl = document.getElementById('muniList');
   listEl.innerHTML = '';
-  const filtered = municipalities.filter(m =>
-    m.name.indexOf(filter) !== -1 || m.pref.indexOf(filter) !== -1
-  );
-  filtered.forEach(m => {
-    const item = document.createElement('div');
+  var filtered = municipalities.filter(function(m) {
+    return m.name.indexOf(filter) !== -1 || m.pref.indexOf(filter) !== -1;
+  });
+  filtered.forEach(function(m) {
+    var item = document.createElement('div');
     item.className = 'muni-item';
-    item.innerHTML = '<span class="pref">' + m.pref + '</span> <strong>' + m.name + '</strong>';
-    item.addEventListener('click', function() {
-      const key = m.pref + '_' + m.name;
-      if (polygonLayers[key] && polygonLayers[key].length > 0) {
-        // Fit bounds to all polygon pieces
-        const group = L.featureGroup(polygonLayers[key]);
-        map.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 12 });
-        // Open popup on first polygon
-        polygonLayers[key][0].openPopup();
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = m.enabled;
+    cb.addEventListener('change', function() {
+      m.enabled = this.checked;
+      recompute();
+    });
+    var label = document.createElement('span');
+    label.innerHTML = '<span class="pref">' + m.pref + '</span> <strong>' + m.name + '</strong>';
+    label.style.cursor = 'pointer';
+    label.addEventListener('click', function() {
+      var k = m.pref+'_'+m.name;
+      if (polygonLayers[k] && polygonLayers[k].length && m.enabled) {
+        var group = L.featureGroup(polygonLayers[k]);
+        map.fitBounds(group.getBounds(), {padding:[50,50], maxZoom:12});
+        polygonLayers[k][0].openPopup();
       } else {
-        // Fallback to lat/lng
         map.setView([m.lat, m.lng], 12);
       }
     });
+    var popBadge = document.createElement('span');
+    popBadge.className = 'pop-badge';
+    popBadge.textContent = formatPop(m.pop) + '人';
+    item.appendChild(cb);
+    item.appendChild(label);
+    item.appendChild(popBadge);
     listEl.appendChild(item);
   });
 }
 
-renderMuniList();
+document.getElementById('searchBox').addEventListener('input', function(e) { renderMuniList(e.target.value); });
+document.getElementById('btnCheckAll').addEventListener('click', function() {
+  municipalities.forEach(function(m){ m.enabled = true; });
+  renderMuniList(document.getElementById('searchBox').value);
+  recompute();
+});
+document.getElementById('btnUncheckAll').addEventListener('click', function() {
+  municipalities.forEach(function(m){ m.enabled = false; });
+  renderMuniList(document.getElementById('searchBox').value);
+  recompute();
+});
 
-document.getElementById('searchBox').addEventListener('input', function(e) {
-  renderMuniList(e.target.value);
+// Stats
+document.getElementById('stats').innerHTML = '全 <strong>' + municipalities.length + '</strong> 市町村';
+
+// ---- Load TopoJSON ----
+var TOPOJSON_URL = 'https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/topojson/s0010/N03-21_210101.json';
+
+fetch(TOPOJSON_URL).then(function(res){ return res.json(); }).then(function(topo) {
+  var objectKey = Object.keys(topo.objects)[0];
+  geometries = topo.objects[objectKey].geometries;
+  var geojson = topojson.feature(topo, topo.objects[objectKey]);
+  topoNeighbors = topojson.neighbors(geometries);
+
+  featureToMuni = new Array(geometries.length).fill(null);
+  geometries.forEach(function(geom, fi) {
+    var props = geom.properties;
+    var cityName = props.N03_003 || '', townName = props.N03_004 || '', prefName = props.N03_001 || '';
+    var matched = null;
+    if (townName && muniLookup[townName]) { var c = muniLookup[townName]; if (c.pref === prefName) matched = c; }
+    if (!matched && cityName && muniLookup[cityName]) { var c2 = muniLookup[cityName]; if (c2.pref === prefName) matched = c2; }
+    featureToMuni[fi] = matched;
+  });
+
+  geoLayer = L.geoJSON(geojson, {
+    style: function() { return { fillOpacity: 0, weight: 0, opacity: 0 }; },
+    onEachFeature: function(feature, layer) {
+      var props = feature.properties;
+      var cityName = props.N03_003 || '', townName = props.N03_004 || '', prefName = props.N03_001 || '';
+      var matched = null;
+      if (townName && muniLookup[townName]) { var c = muniLookup[townName]; if (c.pref === prefName) matched = c; }
+      if (!matched && cityName && muniLookup[cityName]) { var c2 = muniLookup[cityName]; if (c2.pref === prefName) matched = c2; }
+      if (!matched) return;
+
+      layer.on('mouseover', function() { if (matched.enabled) { this.setStyle({ fillOpacity: 0.85, weight: 3 }); this.bringToFront(); }});
+      layer.on('mouseout', function() { if (matched.enabled) { this.setStyle({ fillOpacity: 0.6, weight: 2 }); }});
+
+      var key = matched.pref + '_' + matched.name;
+      if (!polygonLayers[key]) polygonLayers[key] = [];
+      polygonLayers[key].push(layer);
+    }
+  }).addTo(map);
+
+  // Initial compute
+  recompute();
+  renderMuniList();
+  document.getElementById('loading').style.display = 'none';
+
+  // Fallback
+  var matchedSet = new Set(Object.keys(polygonLayers));
+  municipalities.forEach(function(m) {
+    var k = m.pref+'_'+m.name;
+    if (!matchedSet.has(k)) {
+      var circle = L.circleMarker([m.lat, m.lng], { radius: 12, fillColor: m.densityColor, fillOpacity: 0.7, color: '#333', weight: 2 });
+      circle.bindPopup(buildPopup(m), { className:'custom-popup', maxWidth:340 });
+      circle.addTo(map);
+      if (!polygonLayers[k]) polygonLayers[k] = [];
+      polygonLayers[k].push(circle);
+    }
+  });
+}).catch(function(err) {
+  console.error('Load error:', err);
+  document.getElementById('loading').innerHTML = '<div style="color:red">読み込みに失敗しました。リロードしてください。</div>';
 });
 </script>
 </body>
