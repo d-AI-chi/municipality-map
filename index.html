@@ -25,8 +25,33 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 }
 .sidebar h2 { font-size: 15px; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 6px; }
 .sidebar .stats { margin-bottom: 10px; color: #555; font-size: 12px; }
+
+.sidebar-toggle-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 1001;
+  background: white; border: none; border-radius: 50%; width: 36px; height: 36px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; font-size: 18px;
+  display: flex; align-items: center; justify-content: center; color: #333; transition: all 0.3s;
+}
+.sidebar-toggle-btn:hover { background: #f0f0f0; transform: scale(1.1); }
+.sidebar.collapsed { width: auto; padding: 8px; max-height: none; overflow: visible; }
+.sidebar.collapsed .sidebar-content { display: none; }
+.sidebar.collapsed h2 { display: none; }
+.sidebar.collapsed .stats { display: none; }
+
+.collapsible-header {
+  cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; margin-bottom: 4px;
+}
+.collapsible-header:hover { opacity: 0.7; }
+.collapsible-header .toggle-icon {
+  font-size: 11px; color: #888; transition: transform 0.2s; flex-shrink: 0; margin-left: 6px;
+}
+.collapsible-header.closed .toggle-icon { transform: rotate(-90deg); }
+.collapsible-body { overflow: hidden; transition: max-height 0.3s ease; }
+.collapsible-body.closed { max-height: 0 !important; overflow: hidden; }
+
 .legend-section { margin-bottom: 10px; }
-.legend-section h3 { font-size: 13px; margin-bottom: 4px; color: #333; }
+.legend-section h3 { font-size: 13px; margin-bottom: 0; color: #333; }
 .search-box { width: 100%; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; font-size: 13px; }
 .search-box:focus { outline: none; border-color: #4A90D9; }
 
@@ -84,50 +109,71 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 <div id="loading"><div class="spinner"></div>市町村境界データを読み込み中...</div>
 <div id="map"></div>
 
+<button class="sidebar-toggle-btn" id="sidebarToggle" title="凡例を表示/非表示">☰</button>
 <div class="sidebar" id="sidebar">
   <h2>R8年 標準化予定市町村</h2>
   <div class="stats" id="stats"></div>
+  <div class="sidebar-content">
   <input type="text" class="search-box" id="searchBox" placeholder="市町村名で検索...">
 
   <div class="legend-section">
-    <h3>密集度 × 人口規模による色分け</h3>
-    <div class="density-definition">
-      <div class="def-box">
-        <div class="def-title">「密集」の定義</div>
-        <div class="def-body">
-          チェックされた市町村の行政区域で<br>
-          <strong>実際に境界を共有する</strong>市町村同士を<br>
-          「隣接」としてグラフ化し、<strong>連なり<br>
-          （クラスター）が3市町村以上</strong>で<br>
-          あれば「密集」と判定。<br>
-          人口が多いほど色が<strong>濃く</strong>なります。
+    <div class="collapsible-header" data-target="legendBody">
+      <h3>密集度 × 人口規模による色分け</h3>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="collapsible-body" id="legendBody">
+      <div class="density-definition">
+        <div class="def-box">
+          <div class="def-title">「密集」の定義</div>
+          <div class="def-body">
+            チェックされた市町村の行政区域で<br>
+            <strong>実際に境界を共有する</strong>市町村同士を<br>
+            「隣接」としてグラフ化し、<strong>連なり<br>
+            （クラスター）が3市町村以上</strong>で<br>
+            あれば「密集」と判定。<br>
+            人口が多いほど色が<strong>濃く</strong>なります。
+          </div>
         </div>
       </div>
-    </div>
-    <div class="density-legend">
-      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong></div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong></div>
-    </div>
-    <div style="margin-top:4px">
-      <div class="pop-gradient">少<div class="pop-gradient-bar dense"></div>多 <span style="color:#d32f2f">密集</span></div>
-      <div class="pop-gradient">少<div class="pop-gradient-bar sparse"></div>多 <span style="color:#2196F3">非密集</span></div>
-    </div>
-    <div class="map-note">
-      ※ 人口: 2020年国勢調査<br>
-      ※ 市町村境界: 国土数値情報（国土交通省）
+      <div class="density-legend">
+        <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong></div>
+        <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong></div>
+      </div>
+      <div style="margin-top:4px">
+        <div class="pop-gradient">少<div class="pop-gradient-bar dense"></div>多 <span style="color:#d32f2f">密集</span></div>
+        <div class="pop-gradient">少<div class="pop-gradient-bar sparse"></div>多 <span style="color:#2196F3">非密集</span></div>
+      </div>
+      <div class="map-note">
+        ※ 人口: 2020年国勢調査<br>
+        ※ 市町村境界: 国土数値情報（国土交通省）
+      </div>
     </div>
   </div>
-
-  <div id="clusterInfoArea"></div>
 
   <div class="legend-section">
-    <h3>市町村一覧（チェックで表示切替）</h3>
-    <div class="check-all-bar">
-      <button id="btnCheckAll">全選択</button>
-      <button id="btnUncheckAll">全解除</button>
+    <div class="collapsible-header" data-target="clusterBody">
+      <h3>密集クラスター情報</h3>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="collapsible-body" id="clusterBody">
+      <div id="clusterInfoArea"></div>
     </div>
   </div>
-  <div class="municipality-list" id="muniList"></div>
+
+  <div class="legend-section">
+    <div class="collapsible-header" data-target="muniBody">
+      <h3>市町村一覧（チェックで表示切替）</h3>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="collapsible-body" id="muniBody">
+      <div class="check-all-bar">
+        <button id="btnCheckAll">全選択</button>
+        <button id="btnUncheckAll">全解除</button>
+      </div>
+      <div class="municipality-list" id="muniList"></div>
+    </div>
+  </div>
+  </div>
 </div>
 
 <div class="info-box">
@@ -551,6 +597,50 @@ fetch(TOPOJSON_URL).then(function(res){ return res.json(); }).then(function(topo
 }).catch(function(err) {
   console.error('Load error:', err);
   document.getElementById('loading').innerHTML = '<div style="color:red">読み込みに失敗しました。リロードしてください。</div>';
+});
+
+// ---- Sidebar toggle (show/hide entire sidebar) ----
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+  var sidebar = document.getElementById('sidebar');
+  var btn = document.getElementById('sidebarToggle');
+  sidebar.classList.toggle('collapsed');
+  if (sidebar.classList.contains('collapsed')) {
+    btn.textContent = '☰';
+    btn.title = '凡例を表示';
+    btn.style.right = '10px';
+  } else {
+    btn.textContent = '✕';
+    btn.title = '凡例を非表示';
+    btn.style.right = '340px';
+  }
+});
+// Initial state: sidebar visible, button shows close
+document.getElementById('sidebarToggle').textContent = '✕';
+document.getElementById('sidebarToggle').style.right = '340px';
+
+// ---- Collapsible section toggles ----
+document.querySelectorAll('.collapsible-header').forEach(function(header) {
+  header.addEventListener('click', function() {
+    var targetId = this.getAttribute('data-target');
+    var body = document.getElementById(targetId);
+    var icon = this.querySelector('.toggle-icon');
+    if (body.classList.contains('closed')) {
+      body.classList.remove('closed');
+      body.style.maxHeight = body.scrollHeight + 'px';
+      this.classList.remove('closed');
+    } else {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      // Force reflow
+      body.offsetHeight;
+      body.style.maxHeight = '0';
+      body.classList.add('closed');
+      this.classList.add('closed');
+    }
+  });
+  // Set initial max-height for animation
+  var targetId = header.getAttribute('data-target');
+  var body = document.getElementById(targetId);
+  body.style.maxHeight = 'none';
 });
 </script>
 </body>
