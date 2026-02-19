@@ -294,9 +294,14 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
       <div class="def-box">
         <div class="def-title">「密集」の定義</div>
         <div class="def-body">
-          半径50km以内に、本リストに含まれる<br>
-          <strong>他の市町村が3つ以上</strong>隣接している場合を<br>
+          対象80市町村間で半径50km以内の<br>
+          隣接関係をグラフ化し、<strong>連なり<br>
+          （クラスター）が3市町村以上</strong>で<br>
+          あれば、そのクラスター全体を<br>
           「密集」と判定しています。<br>
+          <br>
+          ※ 端の市町村（隣接が1つだけ）でも<br>
+          クラスター全体が3以上なら密集扱い。<br>
           <br>
           地図上では該当市町村の領域全体を<br>
           赤色（密集）または青色（非密集）で<br>
@@ -305,8 +310,8 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
       </div>
     </div>
     <div class="density-legend">
-      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong>：隣接3市町村以上</div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong>：隣接2市町村以下</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div><strong>密集</strong>：クラスター3市町村以上</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div><strong>非密集</strong>：クラスター2市町村以下</div>
     </div>
     <div class="map-note">
       ※ 市町村境界データ: 国土数値情報（国土交通省）<br>
@@ -328,6 +333,7 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script>
 // Data: parsed from Excel
 const municipalities = [
@@ -449,24 +455,67 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Step 1: Build adjacency list (50km)
 municipalities.forEach((m, i) => {
-  const neighborList = [];
+  m.idx = i;
+  m.adjacentIndices = [];
+  m.neighborNames = [];
+});
+municipalities.forEach((m, i) => {
   municipalities.forEach((n, j) => {
-    if (i !== j && haversine(m.lat, m.lng, n.lat, n.lng) < 50) {
-      neighborList.push(n.name);
+    if (i < j && haversine(m.lat, m.lng, n.lat, n.lng) < 50) {
+      m.adjacentIndices.push(j);
+      n.adjacentIndices.push(i);
+      m.neighborNames.push(n.name);
+      n.neighborNames.push(m.name);
     }
   });
-  m.neighbors = neighborList.length;
-  m.neighborNames = neighborList;
-  if (neighborList.length >= 3) {
-    m.density = 'dense';
-    m.densityColor = '#d32f2f';
-    m.densityLabel = '密集';
-  } else {
-    m.density = 'sparse';
-    m.densityColor = '#2196F3';
-    m.densityLabel = '非密集';
+  m.neighbors = m.neighborNames.length;
+});
+
+// Step 2: Find connected components (clusters) via BFS
+const visited = new Array(municipalities.length).fill(false);
+const clusters = []; // array of arrays of indices
+
+municipalities.forEach((m, i) => {
+  if (visited[i]) return;
+  // BFS
+  const queue = [i];
+  const cluster = [];
+  visited[i] = true;
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    cluster.push(cur);
+    municipalities[cur].adjacentIndices.forEach(nb => {
+      if (!visited[nb]) {
+        visited[nb] = true;
+        queue.push(nb);
+      }
+    });
   }
+  clusters.push(cluster);
+});
+
+// Step 3: Assign density based on cluster size >= 3
+clusters.forEach(cluster => {
+  const isDense = cluster.length >= 3;
+  cluster.forEach(idx => {
+    const m = municipalities[idx];
+    if (isDense) {
+      m.density = 'dense';
+      m.densityColor = '#d32f2f';
+      m.densityLabel = '密集';
+    } else {
+      m.density = 'sparse';
+      m.densityColor = '#2196F3';
+      m.densityLabel = '非密集';
+    }
+    m.clusterSize = cluster.length;
+    m.clusterMembers = cluster.map(ci => municipalities[ci].name);
+  });
+});
+
+municipalities.forEach(m => {
   m.dateStr = excelDateToString(m.date);
 });
 
@@ -511,12 +560,15 @@ L.control.layers(baseMaps, null, { position: 'topleft' }).addTo(map);
 // Store polygon layers for click-from-list
 const polygonLayers = {};
 
-// Fetch GeoJSON and render polygons
-const GEOJSON_URL = 'https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/geojson/s0001/N03-21_210101.json';
+// Fetch TopoJSON (high-precision s0010, ~1.5MB) and convert to GeoJSON
+const TOPOJSON_URL = 'https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topography@main/data/municipality/topojson/s0010/N03-21_210101.json';
 
-fetch(GEOJSON_URL)
+fetch(TOPOJSON_URL)
   .then(res => res.json())
-  .then(geojson => {
+  .then(topo => {
+    // Convert TopoJSON to GeoJSON
+    const objectKey = Object.keys(topo.objects)[0];
+    const geojson = topojson.feature(topo, topo.objects[objectKey]);
     // For each feature, check if it matches our municipality list
     const geoLayer = L.geoJSON(geojson, {
       style: function(feature) {
@@ -569,12 +621,19 @@ fetch(GEOJSON_URL)
           });
 
           // Popup
+          const clusterSection = matched.clusterSize > 1
+            ? '<div class="neighbor-info">' +
+              '<div class="neighbor-label">所属クラスター: <strong>' + matched.clusterSize + '市町村</strong></div>' +
+              '<div class="neighbor-list">' + matched.clusterMembers.filter(n => n !== matched.name).join('、') + '</div>' +
+              '</div>'
+            : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>なし（単独）</strong></div></div>';
+
           const neighborSection = matched.neighbors > 0
             ? '<div class="neighbor-info">' +
-              '<div class="neighbor-label">隣接市町村（50km以内）: <strong>' + matched.neighbors + '件</strong></div>' +
+              '<div class="neighbor-label">直接隣接（50km以内）: <strong>' + matched.neighbors + '件</strong></div>' +
               '<div class="neighbor-list">' + matched.neighborNames.join('、') + '</div>' +
               '</div>'
-            : '<div class="neighbor-info"><div class="neighbor-label">隣接市町村（50km以内）: <strong>なし</strong></div></div>';
+            : '';
 
           const popupContent =
             '<div class="popup-content">' +
@@ -585,8 +644,9 @@ fetch(GEOJSON_URL)
             '<div class="date-value">' + matched.dateStr + '</div>' +
             '</div>' +
             '<div class="density-badge" style="background:' + matched.densityColor + '">' +
-            matched.densityLabel + '（隣接 ' + matched.neighbors + ' 市町村）' +
+            matched.densityLabel + '（クラスター ' + matched.clusterSize + ' 市町村）' +
             '</div>' +
+            clusterSection +
             neighborSection +
             '</div>';
 
@@ -624,12 +684,19 @@ fetch(GEOJSON_URL)
           weight: 2
         });
 
+        const clusterSection = m.clusterSize > 1
+          ? '<div class="neighbor-info">' +
+            '<div class="neighbor-label">所属クラスター: <strong>' + m.clusterSize + '市町村</strong></div>' +
+            '<div class="neighbor-list">' + m.clusterMembers.filter(n => n !== m.name).join('、') + '</div>' +
+            '</div>'
+          : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>なし（単独）</strong></div></div>';
+
         const neighborSection = m.neighbors > 0
           ? '<div class="neighbor-info">' +
-            '<div class="neighbor-label">隣接市町村（50km以内）: <strong>' + m.neighbors + '件</strong></div>' +
+            '<div class="neighbor-label">直接隣接（50km以内）: <strong>' + m.neighbors + '件</strong></div>' +
             '<div class="neighbor-list">' + m.neighborNames.join('、') + '</div>' +
             '</div>'
-          : '<div class="neighbor-info"><div class="neighbor-label">隣接市町村（50km以内）: <strong>なし</strong></div></div>';
+          : '';
 
         const popupContent =
           '<div class="popup-content">' +
@@ -640,8 +707,9 @@ fetch(GEOJSON_URL)
           '<div class="date-value">' + m.dateStr + '</div>' +
           '</div>' +
           '<div class="density-badge" style="background:' + m.densityColor + '">' +
-          m.densityLabel + '（隣接 ' + m.neighbors + ' 市町村）' +
+          m.densityLabel + '（クラスター ' + m.clusterSize + ' 市町村）' +
           '</div>' +
+          clusterSection +
           neighborSection +
           '</div>';
 
