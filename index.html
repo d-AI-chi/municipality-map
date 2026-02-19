@@ -294,14 +294,16 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
       <div class="def-box">
         <div class="def-title">「密集」の定義</div>
         <div class="def-body">
-          対象80市町村間で半径50km以内の<br>
-          隣接関係をグラフ化し、<strong>連なり<br>
+          対象80市町村の行政区域ポリゴンで<br>
+          <strong>実際に境界を共有する</strong>市町村同士を<br>
+          「隣接」としてグラフ化し、<strong>連なり<br>
           （クラスター）が3市町村以上</strong>で<br>
           あれば、そのクラスター全体を<br>
           「密集」と判定しています。<br>
           <br>
           ※ 端の市町村（隣接が1つだけ）でも<br>
           クラスター全体が3以上なら密集扱い。<br>
+          ※ 距離制限は使用していません。<br>
           <br>
           地図上では該当市町村の領域全体を<br>
           赤色（密集）または青色（非密集）で<br>
@@ -444,79 +446,16 @@ prefList.forEach((p, i) => {
   prefColors[p] = colorPalette[i % colorPalette.length];
 });
 
-// Calculate density (number of neighbors within 50km)
-function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-    Math.sin(dLng/2) * Math.sin(dLng/2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// Step 1: Build adjacency list (50km)
-municipalities.forEach((m, i) => {
-  m.idx = i;
-  m.adjacentIndices = [];
-  m.neighborNames = [];
-});
-municipalities.forEach((m, i) => {
-  municipalities.forEach((n, j) => {
-    if (i < j && haversine(m.lat, m.lng, n.lat, n.lng) < 50) {
-      m.adjacentIndices.push(j);
-      n.adjacentIndices.push(i);
-      m.neighborNames.push(n.name);
-      n.neighborNames.push(m.name);
-    }
-  });
-  m.neighbors = m.neighborNames.length;
-});
-
-// Step 2: Find connected components (clusters) via BFS
-const visited = new Array(municipalities.length).fill(false);
-const clusters = []; // array of arrays of indices
-
-municipalities.forEach((m, i) => {
-  if (visited[i]) return;
-  // BFS
-  const queue = [i];
-  const cluster = [];
-  visited[i] = true;
-  while (queue.length > 0) {
-    const cur = queue.shift();
-    cluster.push(cur);
-    municipalities[cur].adjacentIndices.forEach(nb => {
-      if (!visited[nb]) {
-        visited[nb] = true;
-        queue.push(nb);
-      }
-    });
-  }
-  clusters.push(cluster);
-});
-
-// Step 3: Assign density based on cluster size >= 3
-clusters.forEach(cluster => {
-  const isDense = cluster.length >= 3;
-  cluster.forEach(idx => {
-    const m = municipalities[idx];
-    if (isDense) {
-      m.density = 'dense';
-      m.densityColor = '#d32f2f';
-      m.densityLabel = '密集';
-    } else {
-      m.density = 'sparse';
-      m.densityColor = '#2196F3';
-      m.densityLabel = '非密集';
-    }
-    m.clusterSize = cluster.length;
-    m.clusterMembers = cluster.map(ci => municipalities[ci].name);
-  });
-});
-
+// Initialize – density will be computed after TopoJSON load
 municipalities.forEach(m => {
   m.dateStr = excelDateToString(m.date);
+  m.neighbors = 0;
+  m.neighborNames = [];
+  m.clusterSize = 1;
+  m.clusterMembers = [m.name];
+  m.density = 'sparse';
+  m.densityColor = '#2196F3';
+  m.densityLabel = '非密集';
 });
 
 // Build lookup: key = municipality name to match GeoJSON
@@ -566,160 +505,218 @@ const TOPOJSON_URL = 'https://cdn.jsdelivr.net/gh/smartnews-smri/japan-topograph
 fetch(TOPOJSON_URL)
   .then(res => res.json())
   .then(topo => {
-    // Convert TopoJSON to GeoJSON
     const objectKey = Object.keys(topo.objects)[0];
+    const geometries = topo.objects[objectKey].geometries;
     const geojson = topojson.feature(topo, topo.objects[objectKey]);
-    // For each feature, check if it matches our municipality list
+
+    // ---- Step A: Map each TopoJSON geometry index to our municipality ----
+    // featureIndex -> matched municipality, or null
+    const featureToMuni = new Array(geometries.length).fill(null);
+    // municipality name -> list of feature indices (some munis have multiple polygons)
+    const muniToFeatures = {};
+
+    geometries.forEach((geom, fi) => {
+      const props = geom.properties;
+      const cityName = props.N03_003 || '';
+      const townName = props.N03_004 || '';
+      const prefName = props.N03_001 || '';
+      let matched = null;
+      if (townName && muniLookup[townName]) {
+        const c = muniLookup[townName];
+        if (c.pref === prefName) matched = c;
+      }
+      if (!matched && cityName && muniLookup[cityName]) {
+        const c = muniLookup[cityName];
+        if (c.pref === prefName) matched = c;
+      }
+      if (matched) {
+        featureToMuni[fi] = matched;
+        const mk = matched.pref + '_' + matched.name;
+        if (!muniToFeatures[mk]) muniToFeatures[mk] = [];
+        muniToFeatures[mk].push(fi);
+      }
+    });
+
+    // ---- Step B: Use topojson.neighbors() for real boundary adjacency ----
+    const topoNeighbors = topojson.neighbors(geometries);
+
+    // Build adjacency between our 80 municipalities (by name key)
+    const muniAdj = {}; // key -> Set of neighbor keys
+    municipalities.forEach(m => {
+      muniAdj[m.pref + '_' + m.name] = new Set();
+    });
+
+    geometries.forEach((geom, fi) => {
+      const mA = featureToMuni[fi];
+      if (!mA) return;
+      const keyA = mA.pref + '_' + mA.name;
+      (topoNeighbors[fi] || []).forEach(ni => {
+        const mB = featureToMuni[ni];
+        if (!mB) return;
+        const keyB = mB.pref + '_' + mB.name;
+        if (keyA !== keyB) {
+          muniAdj[keyA].add(keyB);
+          muniAdj[keyB].add(keyA);
+        }
+      });
+    });
+
+    // Store neighbor info on each municipality
+    municipalities.forEach(m => {
+      const key = m.pref + '_' + m.name;
+      const adjSet = muniAdj[key] || new Set();
+      m.neighborNames = [...adjSet].map(k => {
+        const parts = k.split('_');
+        return parts.slice(1).join('_');
+      });
+      m.neighbors = m.neighborNames.length;
+    });
+
+    // ---- Step C: BFS to find clusters ----
+    const muniKeys = municipalities.map(m => m.pref + '_' + m.name);
+    const keyToIdx = {};
+    muniKeys.forEach((k, i) => { keyToIdx[k] = i; });
+    const vis = new Array(municipalities.length).fill(false);
+    const clusters = [];
+
+    municipalities.forEach((m, i) => {
+      if (vis[i]) return;
+      const queue = [i];
+      const cluster = [];
+      vis[i] = true;
+      while (queue.length > 0) {
+        const cur = queue.shift();
+        cluster.push(cur);
+        const curKey = muniKeys[cur];
+        (muniAdj[curKey] || new Set()).forEach(nbKey => {
+          const ni = keyToIdx[nbKey];
+          if (ni !== undefined && !vis[ni]) {
+            vis[ni] = true;
+            queue.push(ni);
+          }
+        });
+      }
+      clusters.push(cluster);
+    });
+
+    clusters.forEach(cluster => {
+      const isDense = cluster.length >= 3;
+      cluster.forEach(idx => {
+        const m = municipalities[idx];
+        if (isDense) {
+          m.density = 'dense';
+          m.densityColor = '#d32f2f';
+          m.densityLabel = '密集';
+        } else {
+          m.density = 'sparse';
+          m.densityColor = '#2196F3';
+          m.densityLabel = '非密集';
+        }
+        m.clusterSize = cluster.length;
+        m.clusterMembers = cluster.map(ci => municipalities[ci].name);
+      });
+    });
+
+    // ---- Step D: Render polygons with computed colors ----
     const geoLayer = L.geoJSON(geojson, {
       style: function(feature) {
-        // Default: invisible
         return { fillOpacity: 0, weight: 0, opacity: 0 };
       },
       onEachFeature: function(feature, layer) {
         const props = feature.properties;
-        // N03_003 = city/county name, N03_004 = town/village name
         const cityName = props.N03_003 || '';
         const townName = props.N03_004 || '';
         const prefName = props.N03_001 || '';
-
-        // Try to match: the municipality name in our list
-        // could be townName (for towns/villages) or cityName (for cities)
         let matched = null;
-
-        // First try exact match on townName
         if (townName && muniLookup[townName]) {
-          const candidate = muniLookup[townName];
-          if (candidate.pref === prefName) {
-            matched = candidate;
-          }
+          const c = muniLookup[townName];
+          if (c.pref === prefName) matched = c;
         }
-        // Then try cityName (for 市 like 三笠市, 加賀市, etc.)
         if (!matched && cityName && muniLookup[cityName]) {
-          const candidate = muniLookup[cityName];
-          if (candidate.pref === prefName) {
-            matched = candidate;
-          }
+          const c = muniLookup[cityName];
+          if (c.pref === prefName) matched = c;
         }
+        if (!matched) return;
 
-        if (matched) {
-          // Style this polygon
-          layer.setStyle({
-            fillColor: matched.densityColor,
-            fillOpacity: 0.55,
-            color: '#333',
-            weight: 2,
-            opacity: 0.8
-          });
+        layer.setStyle({
+          fillColor: matched.densityColor,
+          fillOpacity: 0.55,
+          color: '#333',
+          weight: 2,
+          opacity: 0.8
+        });
 
-          // Hover effect
-          layer.on('mouseover', function() {
-            this.setStyle({ fillOpacity: 0.8, weight: 3 });
-            this.bringToFront();
-          });
-          layer.on('mouseout', function() {
-            this.setStyle({ fillOpacity: 0.55, weight: 2 });
-          });
+        layer.on('mouseover', function() {
+          this.setStyle({ fillOpacity: 0.8, weight: 3 });
+          this.bringToFront();
+        });
+        layer.on('mouseout', function() {
+          this.setStyle({ fillOpacity: 0.55, weight: 2 });
+        });
 
-          // Popup
-          const clusterSection = matched.clusterSize > 1
-            ? '<div class="neighbor-info">' +
-              '<div class="neighbor-label">所属クラスター: <strong>' + matched.clusterSize + '市町村</strong></div>' +
-              '<div class="neighbor-list">' + matched.clusterMembers.filter(n => n !== matched.name).join('、') + '</div>' +
-              '</div>'
-            : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>なし（単独）</strong></div></div>';
+        var clusterSection = matched.clusterSize > 1
+          ? '<div class="neighbor-info">' +
+            '<div class="neighbor-label">所属クラスター: <strong>' + matched.clusterSize + '市町村</strong></div>' +
+            '<div class="neighbor-list">' + matched.clusterMembers.filter(function(n){return n !== matched.name}).join('、') + '</div>' +
+            '</div>'
+          : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>なし（単独）</strong></div></div>';
 
-          const neighborSection = matched.neighbors > 0
-            ? '<div class="neighbor-info">' +
-              '<div class="neighbor-label">直接隣接（50km以内）: <strong>' + matched.neighbors + '件</strong></div>' +
-              '<div class="neighbor-list">' + matched.neighborNames.join('、') + '</div>' +
-              '</div>'
-            : '';
+        var neighborSection = matched.neighbors > 0
+          ? '<div class="neighbor-info">' +
+            '<div class="neighbor-label">境界を共有する隣接市町村: <strong>' + matched.neighbors + '件</strong></div>' +
+            '<div class="neighbor-list">' + matched.neighborNames.join('、') + '</div>' +
+            '</div>'
+          : '';
 
-          const popupContent =
-            '<div class="popup-content">' +
-            '<h3>' + matched.name + '</h3>' +
-            '<div class="pref-name">' + matched.pref + '</div>' +
-            '<div class="date-info">' +
-            '<div class="date-label">利用開始日</div>' +
-            '<div class="date-value">' + matched.dateStr + '</div>' +
-            '</div>' +
-            '<div class="density-badge" style="background:' + matched.densityColor + '">' +
-            matched.densityLabel + '（クラスター ' + matched.clusterSize + ' 市町村）' +
-            '</div>' +
-            clusterSection +
-            neighborSection +
-            '</div>';
+        var popupContent =
+          '<div class="popup-content">' +
+          '<h3>' + matched.name + '</h3>' +
+          '<div class="pref-name">' + matched.pref + '</div>' +
+          '<div class="date-info">' +
+          '<div class="date-label">利用開始日</div>' +
+          '<div class="date-value">' + matched.dateStr + '</div>' +
+          '</div>' +
+          '<div class="density-badge" style="background:' + matched.densityColor + '">' +
+          matched.densityLabel + '（クラスター ' + matched.clusterSize + ' 市町村）' +
+          '</div>' +
+          clusterSection +
+          neighborSection +
+          '</div>';
 
-          layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
+        layer.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
 
-          // Store for list click
-          const key = matched.pref + '_' + matched.name;
-          if (!polygonLayers[key]) {
-            polygonLayers[key] = [];
-          }
-          polygonLayers[key].push(layer);
-        }
+        var key = matched.pref + '_' + matched.name;
+        if (!polygonLayers[key]) polygonLayers[key] = [];
+        polygonLayers[key].push(layer);
       }
     }).addTo(map);
 
     // Hide loading
     document.getElementById('loading').style.display = 'none';
 
-    // Check for unmatched municipalities and log
-    const matchedNames = new Set();
-    Object.keys(polygonLayers).forEach(k => {
-      const name = k.split('_').slice(1).join('_');
-      matchedNames.add(name);
+    // Fallback for unmatched
+    var matchedNames = new Set();
+    Object.keys(polygonLayers).forEach(function(k) {
+      matchedNames.add(k.split('_').slice(1).join('_'));
     });
-    const unmatched = municipalities.filter(m => !matchedNames.has(m.name));
+    var unmatched = municipalities.filter(function(m) { return !matchedNames.has(m.name); });
     if (unmatched.length > 0) {
-      console.log('Unmatched municipalities (fallback markers will be added):', unmatched.map(m => m.pref + ' ' + m.name));
-      // Add fallback circle markers for unmatched
-      unmatched.forEach(m => {
-        const circle = L.circleMarker([m.lat, m.lng], {
-          radius: 12,
-          fillColor: m.densityColor,
-          fillOpacity: 0.7,
-          color: '#333',
-          weight: 2
+      console.log('Unmatched (fallback):', unmatched.map(function(m){return m.pref+' '+m.name}));
+      unmatched.forEach(function(m) {
+        var circle = L.circleMarker([m.lat, m.lng], {
+          radius: 12, fillColor: m.densityColor, fillOpacity: 0.7, color: '#333', weight: 2
         });
-
-        const clusterSection = m.clusterSize > 1
-          ? '<div class="neighbor-info">' +
-            '<div class="neighbor-label">所属クラスター: <strong>' + m.clusterSize + '市町村</strong></div>' +
-            '<div class="neighbor-list">' + m.clusterMembers.filter(n => n !== m.name).join('、') + '</div>' +
-            '</div>'
-          : '<div class="neighbor-info"><div class="neighbor-label">所属クラスター: <strong>なし（単独）</strong></div></div>';
-
-        const neighborSection = m.neighbors > 0
-          ? '<div class="neighbor-info">' +
-            '<div class="neighbor-label">直接隣接（50km以内）: <strong>' + m.neighbors + '件</strong></div>' +
-            '<div class="neighbor-list">' + m.neighborNames.join('、') + '</div>' +
-            '</div>'
-          : '';
-
-        const popupContent =
+        var popupContent =
           '<div class="popup-content">' +
           '<h3>' + m.name + '</h3>' +
           '<div class="pref-name">' + m.pref + '</div>' +
-          '<div class="date-info">' +
-          '<div class="date-label">利用開始日</div>' +
-          '<div class="date-value">' + m.dateStr + '</div>' +
-          '</div>' +
-          '<div class="density-badge" style="background:' + m.densityColor + '">' +
-          m.densityLabel + '（クラスター ' + m.clusterSize + ' 市町村）' +
-          '</div>' +
-          clusterSection +
-          neighborSection +
+          '<div class="date-info"><div class="date-label">利用開始日</div><div class="date-value">' + m.dateStr + '</div></div>' +
+          '<div class="density-badge" style="background:' + m.densityColor + '">' + m.densityLabel + '（クラスター ' + m.clusterSize + ' 市町村）</div>' +
           '</div>';
-
         circle.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
         circle.addTo(map);
-
-        const key = m.pref + '_' + m.name;
-        if (!polygonLayers[key]) {
-          polygonLayers[key] = [];
-        }
+        var key = m.pref + '_' + m.name;
+        if (!polygonLayers[key]) polygonLayers[key] = [];
         polygonLayers[key].push(circle);
       });
     }
