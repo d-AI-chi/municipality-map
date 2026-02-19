@@ -162,6 +162,26 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
   font-weight: bold;
 }
 
+.neighbor-info {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #f9f9f9;
+  border-radius: 4px;
+  border-left: 3px solid #999;
+}
+
+.neighbor-label {
+  font-size: 11px;
+  color: #555;
+  margin-bottom: 3px;
+}
+
+.neighbor-list {
+  font-size: 12px;
+  color: #333;
+  line-height: 1.5;
+}
+
 .toggle-sidebar {
   position: absolute;
   top: 10px;
@@ -235,10 +255,8 @@ body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; }
   <div class="legend-section">
     <h3>密集度による色分け</h3>
     <div class="density-legend">
-      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div>高密集</div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#f57c00"></div>中密集</div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#fbc02d"></div>低密集</div>
-      <div class="density-legend-item"><div class="density-dot" style="background:#388e3c"></div>孤立</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#d32f2f"></div>密集（隣接3市町村以上）</div>
+      <div class="density-legend-item"><div class="density-dot" style="background:#2196F3"></div>非密集（隣接2市町村以下）</div>
     </div>
   </div>
 
@@ -403,29 +421,22 @@ function haversine(lat1, lng1, lat2, lng2) {
 }
 
 municipalities.forEach((m, i) => {
-  let neighbors = 0;
+  const neighborList = [];
   municipalities.forEach((n, j) => {
     if (i !== j && haversine(m.lat, m.lng, n.lat, n.lng) < 50) {
-      neighbors++;
+      neighborList.push(n.name);
     }
   });
-  m.neighbors = neighbors;
-  if (neighbors >= 5) {
-    m.density = 'high';
+  m.neighbors = neighborList.length;
+  m.neighborNames = neighborList;
+  if (neighborList.length >= 3) {
+    m.density = 'dense';
     m.densityColor = '#d32f2f';
-    m.densityLabel = '高密集';
-  } else if (neighbors >= 3) {
-    m.density = 'medium';
-    m.densityColor = '#f57c00';
-    m.densityLabel = '中密集';
-  } else if (neighbors >= 1) {
-    m.density = 'low';
-    m.densityColor = '#fbc02d';
-    m.densityLabel = '低密集';
+    m.densityLabel = '密集';
   } else {
-    m.density = 'isolated';
-    m.densityColor = '#388e3c';
-    m.densityLabel = '孤立';
+    m.density = 'sparse';
+    m.densityColor = '#2196F3';
+    m.densityLabel = '非密集';
   }
   m.dateStr = excelDateToString(m.date);
 });
@@ -465,6 +476,13 @@ municipalities.forEach(m => {
 
   const marker = L.marker([m.lat, m.lng], { icon: icon });
 
+  const neighborSection = m.neighbors > 0
+    ? `<div class="neighbor-info">
+        <div class="neighbor-label">隣接市町村（50km以内）: <strong>${m.neighbors}件</strong></div>
+        <div class="neighbor-list">${m.neighborNames.join('、')}</div>
+      </div>`
+    : `<div class="neighbor-info"><div class="neighbor-label">隣接市町村（50km以内）: <strong>なし</strong></div></div>`;
+
   const popupContent = `
     <div class="popup-content">
       <h3>${m.name}</h3>
@@ -474,12 +492,13 @@ municipalities.forEach(m => {
         <div class="date-value">${m.dateStr}</div>
       </div>
       <div class="density-badge" style="background:${m.densityColor}">
-        ${m.densityLabel}（近隣 ${m.neighbors} 市町村）
+        ${m.densityLabel}（隣接 ${m.neighbors} 市町村）
       </div>
+      ${neighborSection}
     </div>
   `;
 
-  marker.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 250 });
+  marker.bindPopup(popupContent, { className: 'custom-popup', maxWidth: 320 });
   marker.addTo(map);
   markerGroup.addLayer(marker);
 
